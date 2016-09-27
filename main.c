@@ -3,9 +3,7 @@
 #include <string.h>
 #include <time.h>
 #include <assert.h>
-
 #include IMPL
-
 #define DICT_FILE "./dictionary/words.txt"
 
 static double diff_in_second(struct timespec t1, struct timespec t2)
@@ -35,13 +33,28 @@ int main(int argc, char *argv[])
         printf("cannot open the file\n");
         return -1;
     }
+    /*build hash table*/
+#if defined (HASH)
+    entry *pHead[BUCKET_SIZE],*e[BUCKET_SIZE];
 
+    for(int i=0; i<BUCKET_SIZE; i++) {
+        pHead[i] = (entry *)malloc(sizeof(entry));
+        (pHead[i])->pNext = NULL;
+        e[i] = pHead[i];
+        e[i]->pNext = NULL;
+    }
+#else
     /* build the entry */
     entry *pHead, *e;
+    e = (entry *)malloc(sizeof(entry));
     pHead = (entry *) malloc(sizeof(entry));
-    printf("size of entry : %lu bytes\n", sizeof(entry));
     e = pHead;
     e->pNext = NULL;
+    printf("size of entry : %lu bytes\n", sizeof(entry));
+#endif
+    //printf("size of hash table : %lu bytes\n",sizeof(entry));
+
+
 
 #if defined(__GNUC__)
     __builtin___clear_cache((char *) pHead, (char *) pHead + sizeof(entry));
@@ -52,7 +65,13 @@ int main(int argc, char *argv[])
             i++;
         line[i - 1] = '\0';
         i = 0;
-        e = append(line, e);
+#if defined (HASH)
+        int hash_num = (int)line[0] - 97;
+        e[hash_num] = append(line,e[hash_num]);
+#else
+        e = append(line,e);
+#endif
+
     }
     clock_gettime(CLOCK_REALTIME, &end);
     cpu_time1 = diff_in_second(start, end);
@@ -60,22 +79,36 @@ int main(int argc, char *argv[])
     /* close file as soon as possible */
     fclose(fp);
 
-    e = pHead;
-
     /* the givn last name to find */
     char input[MAX_LAST_NAME_SIZE] = "zyxel";
-    e = pHead;
 
+#if defined (HASH)
+    for(int i=0; i<BUCKET_SIZE; i++) {
+        e[i] = pHead[i];
+    }
+#else
+    e = pHead;
     assert(findName(input, e) &&
            "Did you implement findName() in " IMPL "?");
     assert(0 == strcmp(findName(input, e)->lastName, "zyxel"));
+
+#endif
+
+
 
 #if defined(__GNUC__)
     __builtin___clear_cache((char *) pHead, (char *) pHead + sizeof(entry));
 #endif
     /* compute the execution time */
     clock_gettime(CLOCK_REALTIME, &start);
-    findName(input, e);
+
+#if defined (HASH)
+    int search_index = (int)input[0] - 97;
+    findName(input,e[search_index]);
+#else
+    findName(input,e);
+#endif
+
     clock_gettime(CLOCK_REALTIME, &end);
     cpu_time2 = diff_in_second(start, end);
 
@@ -91,8 +124,14 @@ int main(int argc, char *argv[])
     printf("execution time of append() : %lf sec\n", cpu_time1);
     printf("execution time of findName() : %lf sec\n", cpu_time2);
 
+#if defined(HASH)
+    for(int i=0; i<BUCKET_SIZE; i++) {
+        if(pHead[i]->pNext)
+            free(pHead[i]->pNext);
+        free(pHead[i]);
+    }
+#else
     if (pHead->pNext) free(pHead->pNext);
     free(pHead);
-
-    return 0;
+#endif
 }

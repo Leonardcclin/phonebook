@@ -20,7 +20,7 @@ phonebook_opt: $(SRCS_common) phonebook_opt.c phonebook_opt.h
 
 run: $(EXEC)
 	echo 3 | sudo tee /proc/sys/vm/drop_caches
-	watch -d -t "./phonebook_orig && echo 3 | sudo tee /proc/sys/vm/drop_caches"
+	watch -d -t "./phonebook_orig && echo 3 | sudo tee /proc/sys/vm/drop_caches | ./phonebook_opt && echo 3"
 
 cache-test: $(EXEC)
 	perf stat --repeat 100 \
